@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gumption Household Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a till receipt is the brand object. Marketing page and app both
+   hang off it: quiet bottle-green paper world, one marigold highlighter. */
+:root{
+  --paper:#EDF1EC; --card:#FBFCF9; --ink:#10231F; --muted:#56655F;
+  --line:#CBD5CD; --bottle:#1D5A4B; --bottle-ink:#F3F7F2;
+  --marker:#F4B81F; --marker-ink:#231A00;
+  --good:#1E7A4F; --warn:#B4610A; --bad:#B93A2B;
+  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0C1714; --card:#13231F; --ink:#E9F0EA; --muted:#9BACA4;
+    --line:#284039; --bottle:#2F8A72; --bottle-ink:#06120F;
+    --marker:#F4B81F; --marker-ink:#231A00;
+    --good:#5CC692; --warn:#E9A14B; --bad:#F0806F;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0C1714; --card:#13231F; --ink:#E9F0EA; --muted:#9BACA4;
+  --line:#284039; --bottle:#2F8A72; --bottle-ink:#06120F;
+  --marker:#F4B81F; --marker-ink:#231A00;
+  --good:#5CC692; --warn:#E9A14B; --bad:#F0806F;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);font-stretch:85%;line-height:1.02;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(2.6rem,11vw,5.2rem);font-weight:800}
+h2{font-size:clamp(1.9rem,7vw,3rem);font-weight:750}
+h3{font-size:1.25rem;font-weight:700;line-height:1.15}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--marker);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hl{background:linear-gradient(transparent 58%,var(--marker) 58%);padding:0 .08em}
+.muted{color:var(--muted)}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* nav */
+.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0}
+.logo{font-family:var(--display);font-weight:800;font-size:1.45rem;font-stretch:80%;text-decoration:none;display:flex;align-items:center;gap:8px;background:none;border:0;padding:0}
+.logo i{width:22px;height:22px;border-radius:6px;background:var(--marker);display:grid;place-items:center}
+.logo i::after{content:"";width:9px;height:5px;border-left:2.5px solid var(--marker-ink);border-bottom:2.5px solid var(--marker-ink);transform:rotate(-45deg) translate(1px,-1px)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid var(--ink);background:transparent;border-radius:999px;padding:11px 20px;font-weight:600;text-decoration:none;min-height:44px}
+.btn.solid{background:var(--ink);color:var(--paper)}
+.btn.mark{background:var(--marker);color:var(--marker-ink);border-color:var(--marker)}
+.btn.small{padding:7px 14px;min-height:36px;font-size:.9rem}
+.btn.quiet{border-color:var(--line)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+
+/* hero */
+.hero{display:grid;gap:32px;padding:24px 0 56px;align-items:center}
+@media(min-width:820px){.hero{grid-template-columns:1.15fr .85fr;padding:48px 0 80px}}
+.hero p.lede{font-size:1.15rem;max-width:34em;margin:20px 0 26px;color:var(--muted)}
+.cta{display:flex;flex-wrap:wrap;gap:10px}
+.receipt{background:var(--card);border:1px solid var(--line);padding:22px 20px 26px;font-family:var(--mono);font-size:.84rem;max-width:380px;justify-self:center;width:100%;transform:rotate(1.2deg);position:relative;
+  -webkit-mask:linear-gradient(#000,#000) top/100% calc(100% - 10px) no-repeat,radial-gradient(circle at 6px 0,#000 5px,transparent 5.5px) bottom/12px 10px repeat-x;
+          mask:linear-gradient(#000,#000) top/100% calc(100% - 10px) no-repeat,radial-gradient(circle at 6px 0,#000 5px,transparent 5.5px) bottom/12px 10px repeat-x}
+.receipt .head{text-align:center;border-bottom:1px dashed var(--line);padding-bottom:12px;margin-bottom:12px}
+.receipt .head b{font-family:var(--display);font-size:1.3rem;font-stretch:80%;display:block}
+.rrow{display:flex;justify-content:space-between;gap:12px;padding:5px 0}
+.rrow span:first-child::before{content:"✓ ";color:var(--good);font-weight:600}
+.rrow.tot{border-top:1px dashed var(--line);margin-top:10px;padding-top:12px;font-weight:600}
+.rrow.tot span:first-child::before{content:""}
+.receipt small{display:block;text-align:center;margin-top:12px;color:var(--muted);font-size:.72rem}
+@media (prefers-reduced-motion:no-preference){
+  .rrow{animation:print .5s both}
+  .rrow:nth-child(3){animation-delay:.12s}.rrow:nth-child(4){animation-delay:.24s}
+  .rrow:nth-child(5){animation-delay:.36s}.rrow:nth-child(6){animation-delay:.48s}.rrow:nth-child(7){animation-delay:.6s}
+  @keyframes print{from{transform:translateY(-6px);opacity:.25}to{transform:none;opacity:1}}
+}
+
+section{padding:56px 0;border-top:1px solid var(--line)}
+.sec-head{display:grid;gap:12px;margin-bottom:28px;max-width:40em}
+.grid{display:grid;gap:14px}
+@media(min-width:640px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:8px;align-content:start}
+.card .eg{font-family:var(--mono);font-size:.78rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px;margin-top:4px}
+.step{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start}
+.step b.n{font-family:var(--display);font-size:2.4rem;font-weight:800;line-height:.9;color:var(--bottle);font-stretch:75%}
+.fix{display:grid;gap:0}
+.fix > div{display:grid;gap:6px;padding:18px 0;border-bottom:1px solid var(--line)}
+@media(min-width:720px){.fix > div{grid-template-columns:1fr 1.3fr;gap:28px}}
+.fix .was{color:var(--muted);font-size:.95rem}
+.fix .was::before{content:"The usual problem";display:block;font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px}
+.fix .now b{font-family:var(--display);font-size:1.2rem;font-stretch:85%;display:block;margin-bottom:2px}
+.band{background:var(--bottle);color:var(--bottle-ink);border-radius:20px;padding:32px 24px;display:grid;gap:16px}
+.price{display:flex;align-items:baseline;gap:6px;font-family:var(--display);font-weight:800;font-size:2.6rem;font-stretch:80%}
+.price small{font-family:var(--body);font-size:.9rem;font-weight:500;color:var(--muted)}
+ul.ticks{list-style:none;padding:0;margin:6px 0 0;display:grid;gap:6px}
+ul.ticks li{padding-left:24px;position:relative}
+ul.ticks li::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:700}
+details{border-bottom:1px solid var(--line);padding:14px 0}
+summary{font-weight:600;cursor:pointer;font-size:1.05rem}
+details p{margin-top:8px;color:var(--muted);max-width:60ch}
+footer{padding:32px 0 48px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+
+/* app */
+#app{max-width:560px;margin:0 auto;padding:0 16px 96px}
+.demo-flag{font-family:var(--mono);font-size:.72rem;background:var(--marker);color:var(--marker-ink);border-radius:6px;padding:3px 8px}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:5;padding-bottom:env(safe-area-inset-bottom)}
+.tabs div{display:flex;width:100%;max-width:560px}
+.tabs button{flex:1;background:none;border:0;padding:12px 4px 14px;font-size:.82rem;font-weight:600;color:var(--muted);border-top:3px solid transparent;min-height:52px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--marker)}
+.tabs .badge{background:var(--bad);color:#fff;border-radius:99px;font-size:.68rem;padding:1px 6px;margin-left:4px;font-family:var(--mono)}
+.panel{display:grid;gap:14px}
+.ledger{background:var(--bottle);color:var(--bottle-ink);border-radius:var(--r);padding:20px;display:grid;gap:14px}
+.ledger .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ledger .big{font-family:var(--display);font-weight:800;font-size:2.3rem;font-stretch:80%;line-height:1}
+.ledger .lbl{font-size:.78rem;opacity:.85}
+.bar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--bottle-ink) 25%,transparent);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--marker);border-radius:99px;transition:width .4s}
+.item{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px}
+.item .top{display:flex;justify-content:space-between;gap:10px;align-items:start}
+.pill{font-family:var(--mono);font-size:.7rem;border-radius:99px;padding:3px 9px;border:1px solid currentColor;white-space:nowrap}
+.pill.good{color:var(--good)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad)}.pill.dim{color:var(--muted)}
+.facts{font-family:var(--mono);font-size:.78rem;color:var(--muted);display:grid;gap:3px;border-left:3px solid var(--line);padding-left:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.bill{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.bill:last-child{border-bottom:0}
+.bill .amt{font-family:var(--mono);font-weight:600;text-align:right}
+.bill small{color:var(--muted)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{background:none;border:0;padding:9px 4px;font-size:.8rem;font-weight:600;color:var(--muted);min-height:40px}
+.seg button + button{border-left:1.5px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+label.chk{display:flex;align-items:center;gap:10px;padding:8px 0;min-height:40px}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--bottle)}
+input[type=text],input[type=number],select{font:inherit;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-height:44px}
+.chat{display:grid;gap:8px}
+.msg{max-width:85%;padding:10px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);justify-self:start;border-bottom-left-radius:4px}
+.msg.me{justify-self:end;background:var(--bottle);color:var(--bottle-ink);border-color:transparent;border-radius:16px;border-bottom-right-radius:4px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0}
+.chips button{white-space:nowrap}
+.log{font-family:var(--mono);font-size:.8rem;display:grid;gap:0}
+.log div{display:grid;grid-template-columns:62px 1fr auto;gap:8px;padding:9px 0;border-bottom:1px dashed var(--line);align-items:center}
+.log div:last-child{border-bottom:0}
+.sheet-bg{position:fixed;inset:0;background:rgba(5,15,12,.55);display:none;align-items:flex-end;justify-content:center;z-index:20}
+.sheet-bg.on{display:flex}
+.sheet{background:var(--card);border-radius:20px 20px 0 0;padding:22px 20px 28px;width:100%;max-width:560px;display:grid;gap:14px;max-height:90%;overflow:auto}
+.paused{background:var(--warn);color:#fff;border-radius:10px;padding:10px 14px;font-weight:600;font-size:.9rem}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ================= MARKETING ================= -->
+<div id="site">
+<div class="wrap">
+  <nav class="nav">
+    <a class="logo" href="#home"><i></i>Gumption</a>
+    <div class="row">
+      <a class="btn small quiet" href="#pricing">Pricing</a>
+      <a class="btn small solid" href="#app">Open the app</a>
+    </div>
+  </nav>
+
+  <header class="hero" id="home">
+    <div>
+      <p class="eyebrow">Household admin agent · UK</p>
+      <h1>The boring bits of home, <span class="hl">sorted.</span></h1>
+      <p class="lede">Gumption watches your bills, subscriptions, bookings and refunds, does the legwork, and asks before anything touches your money. Every saving is checked against your real bill before we count it.</p>
+      <div class="cta">
+        <a class="btn mark" href="#app">Try the live demo</a>
+        <a class="btn" href="#different">See what we fixed</a>
+      </div>
+    </div>
+    <div class="receipt" aria-label="Example of a week of finished tasks">
+      <div class="head"><b>Gumption</b>WEEK OF 9 NOV · EXAMPLE HOME</div>
+      <div class="rrow"><span>Energy fixed, 12 months</span><span>−£212/yr</span></div>
+      <div class="rrow"><span>Podcast trial cancelled</span><span>−£7.99</span></div>
+      <div class="rrow"><span>Boiler service moved</span><span>Thu 8am</span></div>
+      <div class="rrow"><span>Train refund chased</span><span>+£41.20</span></div>
+      <div class="rrow"><span>Car MOT booked</span><span>3 Dec</span></div>
+      <div class="rrow tot"><span>CONFIRMED ON BILLS</span><span>£186.40</span></div>
+      <small>Illustrative figures. Yours come from your own bills.</small>
+    </div>
+  </header>
+</div>
+
+<section><div class="wrap">
+  <div class="sec-head"><p class="eyebrow">What it takes on</p><h2>Four piles of admin, off your plate</h2></div>
+  <div class="grid g2">
+    <div class="card"><h3>Bills and contracts</h3><p>Energy, broadband, mobile, car and home insurance. We track every end date, compare on your actual usage, haggle or switch.</p><p class="eg">"Your fix ends 14 Jan. I found one £212 cheaper. Approve?"</p></div>
+    <div class="card"><h3>Subscriptions</h3><p>One list of everything you pay monthly. Free trials cancelled before they bill, duplicates flagged, downgrades suggested.</p><p class="eg">"Two of you pay for the same music plan. Merge to Family?"</p></div>
+    <div class="card"><h3>Appointments and home care</h3><p>Boiler service, MOT, dentist, school dates. Booked, moved and put in the shared calendar.</p><p class="eg">"Engineer can do Thu 8–10am. Shall I take it?"</p></div>
+    <div class="card"><h3>Purchases and refunds</h3><p>Orders tracked, returns labelled, delay-repay and refund claims chased until the money lands.</p><p class="eg">"Refund of £41.20 arrived in the joint account today."</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><p class="eyebrow">How it works</p><h2>Set up in the time it takes to boil the kettle</h2></div>
+  <div class="grid g3">
+    <div class="step"><b class="n">1</b><div><h3>Describe your home</h3><p class="muted">Who lives there, what you pay for, what you would love to never think about again.</p></div></div>
+    <div class="step"><b class="n">2</b><div><h3>Connect what you choose</h3><p class="muted">Email, calendar, a bill photo, or read-only bank feed. Each connection shows exactly what it can see.</p></div></div>
+    <div class="step"><b class="n">3</b><div><h3>Set the dial</h3><p class="muted">Per category: watch only, ask me first, or just handle it. Updates arrive on WhatsApp, text, email or in the app.</p></div></div>
+  </div>
+</div></section>
+
+<section id="different"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow">What we fixed</p><h2>Bill agents get the same six complaints. We designed them out.</h2></div>
+  <div class="fix">
+    <div><p class="was">"Not sure it actually saved me money." Savings quoted from estimated usage.</p><p class="now"><b>A savings ledger with two columns</b>Estimated and confirmed are kept apart. A saving only moves to confirmed when your next real bill proves it.</p></div>
+    <div><p class="was">A switch set up on the wrong bank account, without asking.</p><p class="now"><b>Money moves need a yes, every time</b>Each approval shows which account will be charged and lets you change it. No default is assumed.</p></div>
+    <div><p class="was">All or nothing. Either the agent acts, or it does not.</p><p class="now"><b>A three-position dial per category</b>Watch only, ask me first, or just handle it, plus a spending ceiling it can never cross alone.</p></div>
+    <div><p class="was">Messages that keep coming and an account that is hard to close.</p><p class="now"><b>Pause and delete are one tap</b>Choose your channels and quiet hours. Pause everything or close and erase from the Controls tab.</p></div>
+    <div><p class="was">Fees and reward offers that read differently in different places.</p><p class="now"><b>One price, written once</b>Free to watch. £6 a month to act, and not a penny until £100 of savings is confirmed on your bills.</p></div>
+    <div><p class="was">No record of what the agent did while you were not looking.</p><p class="now"><b>A full activity log with undo</b>Every action timestamped. Switches show the days left in the 14-day cooling-off period, with a cancel button.</p></div>
+  </div>
+</div></section>
+
+<section id="pricing"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow">Pricing</p><h2>We earn when you save. Nothing from suppliers.</h2></div>
+  <div class="grid g2">
+    <div class="card"><h3>Watch</h3><div class="price">£0 <small>for good</small></div>
+      <ul class="ticks"><li>Every bill and renewal date in one place</li><li>Alerts before prices rise or trials bill</li><li>Better-deal suggestions you can act on yourself</li></ul></div>
+    <div class="card" style="border-color:var(--ink);border-width:2px"><h3>Handle</h3><div class="price">£6 <small>per household, per month</small></div>
+      <ul class="ticks"><li>We switch, haggle, cancel, book and chase for you</li><li>Whole household on one plan</li><li>Free until £100 of savings is confirmed on real bills</li><li>Cancel in the app, no phone call</li></ul>
+      <a class="btn mark" href="#app" style="margin-top:8px">Try the live demo</a></div>
+  </div>
+  <p class="muted" style="margin-top:14px;font-size:.9rem">No commission, no adverts, no data sales. Prototype pricing, shown for illustration.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="sec-head"><h2>Questions people ask first</h2></div>
+  <details><summary>Can it spend money without me?</summary><p>Only if you set a category to "just handle it", and never above your spending ceiling. Out of the box everything is "ask me first".</p></details>
+  <details><summary>How do you know a saving is real?</summary><p>We compare like for like on your metered usage, then check the first bill from the new deal. Until then it sits under estimated.</p></details>
+  <details><summary>What can it see when I connect my email?</summary><p>Bills, receipts, booking confirmations and renewal notices. You can review the list of matched emails and remove any of them.</p></details>
+  <details><summary>What if a switch goes wrong?</summary><p>Energy switches carry a 14-day cooling-off period. The activity log shows the days left and a cancel button. A person picks up anything the agent cannot resolve.</p></details>
+  <details><summary>How do I leave?</summary><p>Controls, then "Close account and erase data". It takes effect straight away.</p></details>
+</div></section>
+
+<section><div class="wrap"><div class="band">
+  <h2>See it work on an example household</h2>
+  <p>Approve a switch, move the dial, undo an action. No sign-up.</p>
+  <div><a class="btn mark" href="#app">Open the app</a></div>
+</div></div></section>
+
+<footer><div class="wrap">Gumption is a concept prototype. The household, suppliers and figures shown are examples, and nothing here is a live financial service.</div></footer>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" hidden>
+  <nav class="nav">
+    <a class="logo" href="#home"><i></i>Gumption</a>
+    <span class="demo-flag">EXAMPLE HOUSEHOLD</span>
+  </nav>
+  <div id="pausedBanner" class="paused" hidden style="margin-bottom:14px">Everything is paused. Nothing will be actioned or sent.</div>
+  <div id="view"></div>
+  <div class="tabs" role="tablist"><div id="tabbar"></div></div>
+</div>
+
+<div class="sheet-bg" id="sheetBg"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+const fresh = () => ({
+  tab:'today', confirmed:186.40, estimated:0, paused:false, closed:false,
+  approvals:[
+    {id:'energy', title:'Switch energy to a 12-month fix', pill:['good','Saves £212/yr'], est:212, money:true,
+      body:'Your Northwind fix ends 14 Jan. Tidewater Power is cheaper for how you actually use energy.',
+      facts:['Based on 12 months of meter readings','Electricity 2,640 kWh · Gas 10,900 kWh','Standing charge 54.1p/day → 49.8p/day','Exit fee £0 · Cooling-off 14 days'], done:'Energy switch to Tidewater started'},
+    {id:'trial', title:'Cancel Podbox before the trial ends', pill:['warn','Bills in 3 days'], est:95.88, money:false,
+      body:'The free trial turns into £7.99 a month on 20 Nov. Nobody has opened it since 2 Nov.',
+      facts:['Last used 2 Nov','Cancel takes effect at once','You can rejoin any time'], done:'Podbox trial cancelled'},
+    {id:'bb', title:'Haggle the broadband renewal', pill:['good','Aim: −£9/mo'], est:108, money:false,
+      body:'Fibrely will raise you from £38 to £43 on 2 Mar. New customers pay £29 for the same speed. I will ask them to match it.',
+      facts:['Same 150Mb package','If they refuse I come back with switch options','No change to your payment details'], done:'Broadband haggle with Fibrely started'}
+  ],
+  bills:[
+    {n:'Energy',p:'Northwind Energy',a:'£148.00/mo',d:'Fix ends 14 Jan',s:['warn','Deal found']},
+    {n:'Broadband',p:'Fibrely 150Mb',a:'£38.00/mo',d:'Price rise 2 Mar',s:['warn','Haggle ready']},
+    {n:'Mobile × 2',p:'Kestrel Mobile',a:'£48.00/mo',d:'Out of contract',s:['dim','Checking']},
+    {n:'Car insurance',p:'Harbour Insure',a:'£612.00/yr',d:'Renews 9 Feb',s:['dim','Quotes from 12 Jan']},
+    {n:'Streamhouse',p:'Subscription',a:'£10.99/mo',d:'Used weekly',s:['good','Fine as is']},
+    {n:'Podbox',p:'Free trial',a:'£7.99/mo',d:'Bills 20 Nov',s:['bad','Unused']}
+  ],
+  log:[
+    {t:'Mon 16',x:'Train delay refund £41.20 received',u:false},
+    {t:'Fri 13',x:'Boiler service moved to Thu 8–10am',u:false},
+    {t:'Wed 11',x:'Car MOT booked for 3 Dec',u:false}
+  ],
+  dial:{'Bills and contracts':1,'Subscriptions':1,'Appointments':2,'Purchases and refunds':2},
+  chan:{WhatsApp:true,'Text message':false,Email:true,'In-app only':false},
+  quiet:true, cap:50,
+  chat:[{me:false,x:'Morning. Three things need a yes from you today, and your train refund landed yesterday.'}]
+});
+let S = fresh();
+const $ = s => document.querySelector(s);
+const gbp = n => '£' + n.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+const TABS = [['today','Today'],['bills','Bills'],['chat','Chat'],['controls','Controls']];
+const DIAL = ['Watch only','Ask me first','Just handle it'];
+const ANSWERS = {
+  'Why this tariff?':'I compared 31 tariffs using your real readings, not an estimate. Tidewater came out £212 a year cheaper with no exit fee. Two were cheaper still, but both had poor complaint records, so I left them out. Want to see them anyway?',
+  'Move the boiler service':'The engineer has Thu 20 Nov 8–10am or Mon 24 Nov 1–3pm. Thursday keeps it before your cover renews. Reply with the one you want and I will book it and update the calendar.',
+  'What did you do this week?':'Three things: chased the train refund until £41.20 arrived, moved the boiler service, and booked the MOT for 3 Dec. Nothing touched your money without a yes.',
+  'Stop messaging me today':'Done. I will hold everything until 8am tomorrow unless something bills before then.'
+};
+
+function render(){
+  $('#tabbar').innerHTML = TABS.map(([k,l]) =>
+    `<button role="tab" aria-selected="${S.tab===k}" data-tab="${k}">${l}${k==='today'&&S.approvals.length?`<span class="badge">${S.approvals.length}</span>`:''}</button>`).join('');
+  $('#pausedBanner').hidden = !S.paused;
+  const v = $('#view');
+  if (S.closed){ v.innerHTML = `<div class="item"><h3>Account closed in this demo</h3><p class="muted">In the real product your data would now be erased and every supplier permission withdrawn.</p><div><button class="btn solid" data-act="reset">Start the demo again</button></div></div>`; return; }
+  if (S.tab==='today') v.innerHTML = today();
+  if (S.tab==='bills') v.innerHTML = bills();
+  if (S.tab==='chat') { v.innerHTML = chat(); const c=$('#chatlog'); if(c) c.lastElementChild?.scrollIntoView({block:'nearest'}); }
+  if (S.tab==='controls') v.innerHTML = controls();
+}
+
+function today(){
+  const total = S.confirmed + S.estimated, pct = total ? (S.confirmed/total*100) : 100;
+  const toGo = Math.max(0, 100 - S.confirmed);
+  return `<div class="panel">
+  <div class="ledger">
+    <div class="eyebrow" style="color:inherit;opacity:.8">Savings ledger · this year</div>
+    <div class="two">
+      <div><div class="big">${gbp(S.confirmed)}</div><div class="lbl">Confirmed on real bills</div></div>
+      <div><div class="big" style="opacity:.75">${gbp(S.estimated)}</div><div class="lbl">Estimated, awaiting first bill</div></div>
+    </div>
+    <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+    <div class="lbl">${toGo ? `Handle plan stays free until £100 is confirmed. ${gbp(toGo)} to go.` : 'Past £100 confirmed. Handle plan is £6 a month, cancel any time.'}</div>
+  </div>
+  <h3>Needs your yes <span class="muted mono" style="font-size:.85rem">(${S.approvals.length})</span></h3>
+  ${S.approvals.length ? S.approvals.map(a => `<div class="item">
+    <div class="top"><h3>${a.title}</h3><span class="pill ${a.pill[0]}">${a.pill[1]}</span></div>
+    <p>${a.body}</p>
+    <div class="facts">${a.facts.map(f=>`<span>${f}</span>`).join('')}</div>
+    <div class="row"><button class="btn solid small" data-act="review" data-id="${a.id}" ${S.paused?'disabled':''}>Review and approve</button><button class="btn quiet small" data-act="skip" data-id="${a.id}">Not now</button></div>
+  </div>`).join('') : `<div class="item"><p>All clear. Nothing is waiting on you.</p></div>`}
+  <h3>Activity log</h3>
+  <div class="item"><div class="log">${S.log.map((l,i)=>`<div><span class="muted">${l.t}</span><span>${l.x}</span>${l.u?`<button class="btn quiet small" data-act="undo" data-i="${i}">Undo</button>`:'<span></span>'}</div>`).join('')}</div></div>
+  </div>`;
+}
+function bills(){
+  return `<div class="panel"><h2>Everything you pay for</h2>
+  <p class="muted">£252.98 a month plus £612 a year across 6 commitments.</p>
+  <div class="item">${S.bills.map(b=>`<div class="bill"><div><b>${b.n}</b><br><small>${b.p} · ${b.d}</small></div><div><div class="amt">${b.a}</div><span class="pill ${b.s[0]}">${b.s[1]}</span></div></div>`).join('')}</div>
+  <div class="item"><h3>Add a bill</h3><p class="muted">In the full product: photograph it, forward the email, or connect the account.</p><div><button class="btn quiet small" data-act="addbill">Show me how</button></div></div></div>`;
+}
+function chat(){
+  return `<div class="panel"><h2>Ask Gumption</h2>
+  <div class="chat" id="chatlog">${S.chat.map(m=>`<div class="msg ${m.me?'me':''}"></div>`).join('')}</div>
+  <div class="chips">${Object.keys(ANSWERS).map(q=>`<button class="btn quiet small" data-act="ask" data-q="${q}">${q}</button>`).join('')}</div>
+  <form id="chatform" class="row" style="flex-wrap:nowrap"><input type="text" id="chatinput" placeholder="Type a message" aria-label="Message" autocomplete="off"><button class="btn solid">Send</button></form></div>`;
+}
+function controls(){
+  return `<div class="panel"><h2>You hold the dial</h2>
+  <div class="item"><h3>How much can Gumption do alone?</h3>
+    ${Object.entries(S.dial).map(([k,v])=>`<div style="display:grid;gap:6px"><b style="font-size:.92rem">${k}</b><div class="seg">${DIAL.map((d,i)=>`<button aria-pressed="${v===i}" data-act="dial" data-k="${k}" data-v="${i}">${d}</button>`).join('')}</div></div>`).join('')}
+    <p class="muted" style="font-size:.85rem">Changing which bank account pays always needs your yes, whatever the dial says.</p></div>
+  <div class="item"><h3>Spending ceiling</h3><p class="muted">Never commit me to more than this per month without asking.</p>
+    <div class="row" style="align-items:center;flex-wrap:nowrap"><span class="mono">£</span><input type="number" id="cap" min="0" step="5" value="${S.cap}" aria-label="Monthly spending ceiling in pounds"></div></div>
+  <div class="item"><h3>Where updates reach you</h3>
+    ${Object.entries(S.chan).map(([k,v],i)=>`<label class="chk"><input type="checkbox" id="ch${i}" data-chan="${k}" ${v?'checked':''}>${k}</label>`).join('')}
+    <label class="chk" style="border-top:1px solid var(--line)"><input type="checkbox" id="quiet" ${S.quiet?'checked':''}>Quiet hours, 9pm to 8am</label></div>
+  <div class="item"><h3>Stop and leave</h3>
+    <div class="row"><button class="btn small ${S.paused?'solid':''}" data-act="pause">${S.paused?'Resume Gumption':'Pause everything'}</button>
+    <button class="btn danger small" data-act="close">Close account and erase data</button></div></div>
+  </div>`;
+}
+
+function fillChat(){ document.querySelectorAll('#chatlog .msg').forEach((el,i)=>el.textContent=S.chat[i].x); }
+function sheet(html){ $('#sheet').innerHTML = html; $('#sheetBg').classList.add('on'); $('#sheet').querySelector('button,select')?.focus(); }
+function closeSheet(){ $('#sheetBg').classList.remove('on'); }
+function say(q){
+  S.chat.push({me:true,x:q});
+  S.chat.push({me:false,x:ANSWERS[q] || 'This demo only knows the suggested questions above. In the full product I would pick this up, and hand over to a person if I got stuck.'});
+  render(); fillChat();
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-act]'); if(!t) { if(e.target.id==='sheetBg') closeSheet(); return; }
+  if (t.dataset.tab){ S.tab = t.dataset.tab; render(); fillChat(); window.scrollTo(0,0); return; }
+  const act = t.dataset.act, a = S.approvals.find(x=>x.id===t.dataset.id);
+  if (act==='review'){
+    sheet(`<p class="eyebrow">Check before you approve</p><h3>${a.title}</h3>
+      <div class="facts">${a.facts.map(f=>`<span>${f}</span>`).join('')}</div>
+      ${a.money?`<label for="acct"><b>Direct debit comes from</b></label>
+      <select id="acct"><option value="">Choose an account</option><option>Joint account ••4471</option><option>Personal account ••0923</option></select>
+      <p class="muted" style="font-size:.85rem">We never pick this for you.</p>`:''}
+      <p class="mono" style="font-size:.82rem">Adds ${gbp(a.est)}/yr to <b>estimated</b>. It moves to confirmed after the first real bill.</p>
+      <p id="sheetErr" class="pill bad" hidden style="justify-self:start">Choose which account pays first</p>
+      <div class="row"><button class="btn mark" data-act="approve" data-id="${a.id}">Approve</button><button class="btn quiet" data-act="cancel">Back</button></div>`);
+  }
+  if (act==='approve'){
+    const sel = $('#acct');
+    if (a.money && !sel.value){ $('#sheetErr').hidden=false; sel.focus(); return; }
+    S.estimated += a.est;
+    S.approvals = S.approvals.filter(x=>x!==a);
+    S.log.unshift({t:'Today',x:a.done + (a.money?` · pays from ${sel.value.slice(-6)} · 14 days to cancel`:''),u:true,a});
+    closeSheet(); render();
+  }
+  if (act==='skip'){ S.approvals = S.approvals.filter(x=>x!==a); S.log.unshift({t:'Today',x:`"${a.title}" set aside. I will not ask again this week.`,u:true,a,skipped:true}); render(); }
+  if (act==='undo'){ const l=S.log[+t.dataset.i]; if(!l.skipped) S.estimated -= l.a.est; S.approvals.unshift(l.a); S.log.splice(+t.dataset.i,1); render(); }
+  if (act==='cancel') closeSheet();
+  if (act==='ask') say(t.dataset.q);
+  if (act==='dial'){ S.dial[t.dataset.k] = +t.dataset.v; render(); }
+  if (act==='pause'){ S.paused = !S.paused; render(); }
+  if (act==='close') sheet(`<h3>Close account and erase data?</h3><p class="muted">Everything Gumption holds about your household is deleted and supplier permissions are withdrawn. Switches already in progress carry on with the supplier.</p><div class="row"><button class="btn danger" data-act="closeyes">Yes, close and erase</button><button class="btn quiet" data-act="cancel">Keep my account</button></div>`);
+  if (act==='closeyes'){ S.closed = true; closeSheet(); render(); }
+  if (act==='reset'){ S = fresh(); render(); fillChat(); }
+  if (act==='addbill') sheet(`<h3>Three ways to add a bill</h3><ul class="ticks"><li>Photograph a paper bill</li><li>Forward the email to your private Gumption address</li><li>Connect the supplier account, read-only</li></ul><p class="muted">Uploads are switched off in this demo.</p><div><button class="btn quiet" data-act="cancel">Close</button></div>`);
+});
+document.addEventListener('submit', e => { e.preventDefault(); const i=$('#chatinput'); if(i && i.value.trim()){ say(i.value.trim()); } });
+document.addEventListener('change', e => {
+  const t=e.target;
+  if (t.dataset.chan) S.chan[t.dataset.chan] = t.checked;
+  if (t.id==='quiet') S.quiet = t.checked;
+  if (t.id==='cap') S.cap = Math.max(0, +t.value||0);
+});
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeSheet(); });
+
+function route(){
+  const inApp = location.hash === '#app';
+  $('#app').hidden = !inApp; $('#site').hidden = inApp;
+  if (inApp){ render(); fillChat(); window.scrollTo(0,0); }
+}
+window.addEventListener('hashchange', route);
+function start(d){ if (d && d.tab){ S = Object.assign(fresh(), d); S.log.forEach(l=>{ if(l.a){ const m=S.approvals.find(x=>x.id===l.a.id); if(m) l.a=m; } }); } route(); }
+window.claude?.hot?.snapshot?.(() => { return JSON.parse(JSON.stringify(S)); });
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
